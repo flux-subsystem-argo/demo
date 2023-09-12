@@ -20,18 +20,6 @@ Try Flamingo today and see how it can improve your GitOps workflow on Kubernetes
 
 This provides a brief overview of the benefits of using Flamingo and why it could be a useful tool for implementing GitOps on Kubernetes clusters. Of course, you may want to tailor this to your specific use case and requirements, but this should give you a good starting point.
 
-## Support Matrix
-
-|Flux        | Argo CD | Image
-|:----------:|:-------:|--------------------------------
-|v2.0.1      | v2.8    | v2.8.0-rc6-fl.15-main-da46678f
-|v2.0.1      | v2.7    | v2.7.10-fl.15-main-688d2fd7
-|v0.41       | v2.6    | v2.6.11-fl.15-main-79fd5954
-|v0.41       | v2.5    | v2.5.19-fl.3-main-3de961f2
-|v0.41       | v2.4    | v2.4.28-fl.3-main-c4ce7dcc
-|v0.38       | v2.3    | v2.3.13-fl.3-main-b0b6148f
-|v0.37       | v2.2    | v2.2.16-fl.3-main-2bba0ae6
-
 ## How does it work?
 
 **Loopback Reconciliation** is a feature of Flamingo that helps to synchronize applications deployed using the GitOps approach. It is activated when the "FluxSubsystem" feature is enabled in the ArgoCD user interface (UI).
@@ -48,16 +36,16 @@ Loopback Reconciliation helps to ensure the reliability and consistency of GitOp
 
 ![FSA (2)](https://user-images.githubusercontent.com/10666/159503288-5faeda59-8b54-40f0-95ca-b46c22742e30.png)
 
-## Getting Started with a Fresh KIND cluster
+## Getting Started with Flamingo CLI
 
 This guide will provide a step-by-step process for setting up a GitOps environment using Flux and ArgoCD, via Flamingo. We will use this public repository to install and bootstrap Flamingo, so no manual installation steps are required. However, if you fork the repository and make it private, you will need to set up a Secret to authenticate your Git repository.
 
 By the end of this guide, you will have Flamingo running locally on your KIND cluster. You will run Flamingo in anonymous mode and see two pre-defined ArgoCD applications, each of which points to its equivalent Flux Kustomization.
 
 Install CLIs
-- [KIND cli](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) 
-- [Flux cli](https://fluxcd.io/docs/cmd/)
-- [ArgoCD cli](https://argo-cd.readthedocs.io/en/stable/cli_installation/)
+- [KIND CLI](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) 
+- [Flux CLI](https://fluxcd.io/docs/cmd/)
+- [Flamingo CLI](https://github.com/flux-subsystem-argo/cli)
 
 Example install in macOS or Linux via [homebrew](https://brew.sh/)
 
@@ -68,8 +56,8 @@ brew install kind
 # install Flux CLI
 brew install fluxcd/tap/flux
 
-# install ArgoCD CLI
-brew install argocd
+# install Flamingo CLI
+brew install flux-subsystem-argo/tap/flamingo
 
 ```
 
@@ -83,75 +71,67 @@ Install **Flux**
 
 ```shell
 flux install
-
 ```
 
-You can check the Flux namespace (`flux-system`) for running pods `kubectl get pods -n flux-system`
-
-![image](./images/kubectl-get-ns-flux-system.png)
-
-
-Copy, and paste this snippet to bootstrap the demo.
+Install **Flamingo**
 
 ```shell
-cat <<EOF | kubectl apply -f -
+flamingo install --version=v2.8.3
+```
+
+Create a **Flux Kustomization**
+
+```yaml
+cat << EOF | kubectl apply -f -
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: podinfo-kustomize
 ---
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: OCIRepository
 metadata:
-  name: fsa-demo
-  namespace: flux-system
-  annotations:
-    metadata.weave.works/flamingo-default-app: "https://localhost:8080/applications/argocd/default-app?view=tree"
-    metadata.weave.works/flamingo-fsa-installation: "https://localhost:8080/applications/argocd/fsa-installation?view=tree"
-    link.argocd.argoproj.io/external-link: "http://localhost:9001/oci/details?clusterName=Default&name=fsa-demo&namespace=flux-system"    
+  name: podinfo
+  namespace: podinfo-kustomize
 spec:
-  interval: 30s
-  url: oci://ghcr.io/flux-subsystem-argo/flamingo/manifests
+  interval: 10m
+  url: oci://ghcr.io/stefanprodan/manifests/podinfo
   ref:
-    tag: v2.7
+     tag: latest
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: fsa-demo
-  namespace: flux-system
-  annotations:
-    metadata.weave.works/flamingo-fsa-demo: "https://localhost:8080/applications/argocd/fsa-demo?view=tree"
-    link.argocd.argoproj.io/external-link: "http://localhost:9001/kustomize/details?clusterName=Default&name=fsa-demo&namespace=flux-system"
+  name: podinfo
+  namespace: podinfo-kustomize
 spec:
+  interval: 10m
+  targetNamespace: podinfo-kustomize
   prune: true
-  interval: 2m
-  path: "./demo"
   sourceRef:
     kind: OCIRepository
-    name: fsa-demo
-  timeout: 3m
+    name: podinfo
+  path: ./
 EOF
-
 ```
 
-Check ArgoCD pods are running and Ready `kubectl get -n argocd pods`
+Generate a Flamingo application to visualize the `podinfo` objects.
 
-![image](./images/argocd-pods-ready.png)
+```shell
+flamingo generate-app \
+  --app-name=podinfo-ks \
+  -n podinfo-kustomize ks/podinfo
+```
 
-Like a normal Argo CD instance, please firstly obtain the initial password by running the following command to login and create other Flux applications.
+Like a normal Argo CD instance, please firstly obtain the initial password by running the following command to login.
 The default user name is `admin`.
 
-```
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+```shell
+flamingo show-init-password
 ```
 
 After that you can port forward and open your browser to http://localhost:8080
-
 ```
 kubectl -n argocd port-forward svc/argocd-server 8080:443
 ```
-
-You'll find 2 FSA Applications, each of which consists of 1 Flux's Kustomization and 1 Flux's GitRepository.
-
-![image1](https://user-images.githubusercontent.com/10666/208858892-5e5d14d9-61c7-4c61-af29-1883e7137509.png)
-
-![image2](https://user-images.githubusercontent.com/10666/208858840-fca56550-a2a1-4fff-829e-f1469e921c86.png)
-
-![image3](https://user-images.githubusercontent.com/10666/208858784-9a508a5b-8d47-47d8-b5a5-0f9adaff72cf.png)
