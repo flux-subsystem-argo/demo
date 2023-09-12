@@ -98,7 +98,7 @@ spec:
   interval: 10m
   url: oci://ghcr.io/stefanprodan/manifests/podinfo
   ref:
-     tag: latest
+    tag: latest
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
