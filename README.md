@@ -40,9 +40,7 @@ Loopback Reconciliation helps to ensure the reliability and consistency of GitOp
 
 ## Getting Started with Flamingo CLI
 
-This guide will provide a step-by-step process for setting up a GitOps environment using Flux and ArgoCD, via Flamingo. We will use this public repository to install and bootstrap Flamingo, so no manual installation steps are required. However, if you fork the repository and make it private, you will need to set up a Secret to authenticate your Git repository.
-
-By the end of this guide, you will have Flamingo running locally on your KIND cluster. You will create a `podinfo` application with a Flux Kustomization, and generate a Flamingo app from this Flux object.
+This guide will provide a step-by-step process for setting up a GitOps environment using Flux and ArgoCD, via Flamingo. By the end of this guide, you will have Flamingo running locally on your KIND cluster. You will create a `podinfo` application with a Flux Kustomization, and generate a Flamingo app from this Flux object.
 
 Install CLIs
 - [KIND CLI](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) 
